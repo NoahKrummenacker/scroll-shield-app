@@ -106,7 +106,7 @@ class AppColors {
           secondary: accent, onSecondary: accentForeground,
           surface: surface, onSurface: text, error: error,
         ),
-        cardTheme: CardTheme(color: card, elevation: 0,
+        cardTheme: CardThemeData(color: card, elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
         switchTheme: SwitchThemeData(
           thumbColor: WidgetStateProperty.resolveWith(
@@ -128,7 +128,7 @@ class AppColors {
         secondary: accent, onSecondary: accentForeground,
         surface: surface, onSurface: text, error: error,
       ),
-      cardTheme: CardTheme(color: card, elevation: 0,
+      cardTheme: CardThemeData(color: card, elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
