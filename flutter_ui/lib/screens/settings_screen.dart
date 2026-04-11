@@ -147,7 +147,7 @@ class _ThemeButton extends StatelessWidget {
       onTap: () => showModalBottomSheet(
         context:            context,
         backgroundColor:    Colors.transparent,
-        isScrollControlled: false,
+        isScrollControlled: true,
         builder: (_) => _ThemeSheet(colors: colors),
       ),
       child: Container(
@@ -199,44 +199,50 @@ class _ThemeSheet extends StatelessWidget {
           Text('Choisir un thème',
             style: TextStyle(color: colors.text, fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 16),
-          ...AppColors.allThemes.map((theme) {
-            final isSelected = provider.colors.label == theme.label;
-            return GestureDetector(
-              onTap: () {
-                provider.setTheme(theme);
-                Navigator.pop(context);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin:   const EdgeInsets.only(bottom: 10),
-                padding:  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color:        isSelected ? theme.accent.withOpacity(0.12) : colors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isSelected ? theme.accent.withOpacity(0.5) : Colors.transparent,
-                    width: 1.5,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    _ColorDot(color: theme.surface, size: 16),
-                    const SizedBox(width: 4),
-                    _ColorDot(color: theme.accent, size: 16),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(theme.label, style: TextStyle(
-                        color:      isSelected ? theme.accent : colors.text,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                        fontSize:   15,
-                      )),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                children: AppColors.allThemes.map((theme) {
+                  final isSelected = provider.colors.label == theme.label;
+                  return GestureDetector(
+                    onTap: () {
+                      provider.setTheme(theme);
+                      Navigator.pop(context);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin:   const EdgeInsets.only(bottom: 10),
+                      padding:  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color:        isSelected ? theme.accent.withOpacity(0.12) : colors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? theme.accent.withOpacity(0.5) : Colors.transparent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          _ColorDot(color: theme.surface, size: 16),
+                          const SizedBox(width: 4),
+                          _ColorDot(color: theme.accent, size: 16),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(theme.label, style: TextStyle(
+                              color:      isSelected ? theme.accent : colors.text,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              fontSize:   15,
+                            )),
+                          ),
+                          if (isSelected) Icon(Icons.check_circle, color: theme.accent, size: 18),
+                        ],
+                      ),
                     ),
-                    if (isSelected) Icon(Icons.check_circle, color: theme.accent, size: 18),
-                  ],
-                ),
+                  );
+                }).toList(),
               ),
-            );
-          }),
+            ),
+          ),
         ],
       ),
     );
@@ -419,6 +425,7 @@ class _PinCard extends StatelessWidget {
                     onPressed: () => _showRemoveDialog(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: colors.error,
+                      minimumSize: const Size(double.infinity, 0),
                       side:  BorderSide(color: colors.error.withOpacity(0.5)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -431,6 +438,7 @@ class _PinCard extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
                       foregroundColor: colors.accentForeground,
+                      minimumSize: const Size(double.infinity, 0),
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 12),

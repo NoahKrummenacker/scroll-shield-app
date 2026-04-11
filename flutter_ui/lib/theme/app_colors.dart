@@ -80,7 +80,20 @@ class AppColors {
     brightness:       Brightness.light,
   );
 
-  static const allThemes = [bleuJaune, grisFonce, gris, clair];
+  static const bossLady = AppColors(
+    background:       Color(0xFF090909),
+    surface:          Color(0xFF1A0E18),
+    card:             Color(0xFF231422),
+    accent:           Color(0xFFFF2576),
+    accentForeground: Color(0xFF090909),
+    text:             Color(0xFFF8EEF2),
+    textSecondary:    Color(0xFF9A7585),
+    success:          Color(0xFF4CAF50),
+    error:            Color(0xFFFF6B9D),
+    label:            'Boss Lady',
+  );
+
+  static const allThemes = [bleuJaune, grisFonce, gris, clair, bossLady];
 
   ThemeData toThemeData() {
     if (brightness == Brightness.light) {
