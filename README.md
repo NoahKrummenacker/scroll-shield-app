@@ -88,6 +88,15 @@ Requires Android SDK (compileSdk 34) and a connected device with ADB enabled.
 
 Outputs `ScrollShield.apk` at the project root.
 
+## CI/CD
+
+Chaque push sur `main` déclenche un workflow GitHub Actions qui :
+- Build l'APK Kotlin (debug) via Gradle
+- Build l'APK Flutter (release) via `flutter build apk --release`
+- Publie les deux APKs dans la release GitHub "Latest Build" :
+  - `ScrollShield-Kotlin.apk` — app native Kotlin
+  - `ScrollShield-Flutter.apk` — app Flutter (recommandée)
+
 ---
 
 After installing, open ScrollShield and tap **Activer dans les paramètres d'accessibilité** to enable the service.
