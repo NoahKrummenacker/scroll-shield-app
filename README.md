@@ -4,7 +4,6 @@ Android app that automatically blocks Instagram Reels and YouTube Shorts using t
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android%208%2B-green.svg)](https://developer.android.com)
-[![Kotlin](https://img.shields.io/badge/Language-Kotlin-purple.svg)](https://kotlinlang.org)
 [![Flutter](https://img.shields.io/badge/UI-Flutter-blue.svg)](https://flutter.dev)
 
 ---
@@ -17,7 +16,8 @@ Android app that automatically blocks Instagram Reels and YouTube Shorts using t
 - Block Shorts launched from the YouTube home screen
 - Schedule-based blocking — active only during a defined time window
 - PIN protection to prevent disabling the blocker
-- 4 themes: Bleu & Jaune, Gris foncé, Gris (default), Clair
+- 6 themes: Bleu & Jaune, Gris foncé, Gris (default), Clair, Boss Lady, Boss Lady 2
+- Daily time limit on Reels and Shorts — free access until budget is exhausted
 
 ## Requirements
 
@@ -28,30 +28,23 @@ Android app that automatically blocks Instagram Reels and YouTube Shorts using t
 ## Project structure
 
 ```
-scroll-shield-android/
-├── app/                            # Kotlin app (original)
-│   └── src/main/
-│       ├── java/com/example/contentblocker/
-│       │   ├── BlockerAccessibilityService.kt
-│       │   ├── MainActivity.kt
-│       │   └── data/PrefsManager.kt
-│       └── res/
-└── flutter_ui/                     # Flutter app (current)
+scroll-shield-app/
+└── flutter_ui/
     ├── lib/
     │   ├── main.dart
     │   ├── screens/
-    │   │   ├── home_screen.dart     # Toggles + service status
-    │   │   └── settings_screen.dart # Theme, schedule, PIN
+    │   │   ├── home_screen.dart     # Toggles + service status + daily progress
+    │   │   └── settings_screen.dart # Theme, schedule, daily limit, PIN
     │   ├── services/
     │   │   └── blocker_channel.dart # MethodChannel bridge
     │   └── theme/
-    │       ├── app_colors.dart      # 4 themes
+    │       ├── app_colors.dart      # 6 themes
     │       └── theme_provider.dart
     └── android/
         └── app/src/main/kotlin/com/example/scroll_shield/
-            ├── BlockerAccessibilityService.kt
-            ├── MainActivity.kt      # MethodChannel handler
-            └── PrefsManager.kt     # SharedPreferences + PIN (SHA-256)
+            ├── BlockerAccessibilityService.kt  # Detection + time tracking
+            ├── MainActivity.kt                 # MethodChannel handler
+            └── PrefsManager.kt                 # SharedPreferences + PIN (SHA-256)
 ```
 
 ## Build & install
@@ -72,30 +65,11 @@ Or for a debug build:
 flutter run
 ```
 
-### Kotlin app (original)
-
-Requires Android SDK (compileSdk 34) and a connected device with ADB enabled.
-
-```bash
-./gradlew installDebug
-```
-
-### Docker (Kotlin app only, no dependencies required)
-
-```bash
-./build-apk.sh
-```
-
-Outputs `ScrollShield.apk` at the project root.
-
 ## CI/CD
 
-Chaque push sur `main` déclenche un workflow GitHub Actions qui :
-- Build l'APK Kotlin (debug) via Gradle
-- Build l'APK Flutter (release) via `flutter build apk --release`
-- Publie les deux APKs dans la release GitHub "Latest Build" :
-  - `ScrollShield-Kotlin.apk` — app native Kotlin
-  - `ScrollShield-Flutter.apk` — app Flutter (recommandée)
+Each push to `main` triggers a GitHub Actions workflow that:
+- Builds the Flutter APK (release) via `flutter build apk --release`
+- Publishes it as `ScrollShield.apk` in the "Latest Build" GitHub release
 
 ---
 

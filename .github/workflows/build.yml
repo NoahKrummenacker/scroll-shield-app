@@ -29,9 +29,6 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Build Kotlin APK
-        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
-
       - name: Build Flutter APK
         run: |
           cd flutter_ui
@@ -49,5 +46,4 @@ jobs:
             --title "Latest Build" \
             --notes "APK compilé automatiquement depuis le dernier commit sur main." \
             --prerelease \
-            app/build/outputs/apk/debug/app-debug.apk#ScrollShield-Kotlin.apk \
-            flutter_ui/build/app/outputs/flutter-apk/app-release.apk#ScrollShield-Flutter.apk
+            flutter_ui/build/app/outputs/flutter-apk/app-release.apk#ScrollShield.apk
