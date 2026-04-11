@@ -29,6 +29,7 @@ class BlockerAccessibilityService : AccessibilityService() {
 
     private lateinit var prefs: PrefsManager
     private var lastActionTime = 0L
+    private var sessionStart   = 0L
 
     override fun onServiceConnected() {
         prefs = PrefsManager(this)
@@ -43,9 +44,24 @@ class BlockerAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
+    private fun trackUsage(isOnContent: Boolean, now: Long) {
+        prefs.resetDailyUsageIfNeeded()
+        if (isOnContent) {
+            if (sessionStart == 0L) sessionStart = now
+            if (now - sessionStart >= 10_000L) {
+                prefs.addUsageSeconds((now - sessionStart) / 1000L)
+                sessionStart = now
+            }
+        } else {
+            if (sessionStart != 0L) {
+                prefs.addUsageSeconds((now - sessionStart) / 1000L)
+                sessionStart = 0L
+            }
+        }
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
-        if (!prefs.isWithinSchedule()) return
         val now = System.currentTimeMillis()
         if (now - lastActionTime < 500L) return
         val packageName = event.packageName?.toString() ?: return
@@ -53,18 +69,33 @@ class BlockerAccessibilityService : AccessibilityService() {
         try {
             when (packageName) {
                 INSTAGRAM_PACKAGE -> {
-                    val isOnReelsTab = detectInstagramReels(root)
-                    val detected = (prefs.blockReels && isOnReelsTab) ||
-                        (prefs.blockReelsFeed && (isOnReelsTab || detectInstagramReelPlayer(root)))
-                    if (detected) {
+                    val isOnReelsTab   = detectInstagramReels(root)
+                    val isOnReelPlayer = detectInstagramReelPlayer(root)
+                    val isOnContent    = isOnReelsTab || isOnReelPlayer
+                    trackUsage(isOnContent, now)
+                    if (!prefs.isWithinSchedule()) return
+                    val shouldBlock = if (prefs.dailyLimitEnabled) {
+                        prefs.shouldBlockByDailyLimit() && isOnContent
+                    } else {
+                        (prefs.blockReels && isOnReelsTab) ||
+                        (prefs.blockReelsFeed && isOnContent)
+                    }
+                    if (shouldBlock) {
                         lastActionTime = now
                         if (!navigateToInstagramHome(root)) performGlobalAction(GLOBAL_ACTION_BACK)
                     }
                 }
                 YOUTUBE_PACKAGE -> {
-                    val detected = (prefs.blockShorts && detectYouTubeShorts(root)) ||
-                        (prefs.blockShortsFeed && detectYouTubeShortsAnywhere(root))
-                    if (detected) {
+                    val isOnContent = detectYouTubeShortsAnywhere(root)
+                    trackUsage(isOnContent, now)
+                    if (!prefs.isWithinSchedule()) return
+                    val shouldBlock = if (prefs.dailyLimitEnabled) {
+                        prefs.shouldBlockByDailyLimit() && isOnContent
+                    } else {
+                        (prefs.blockShorts && detectYouTubeShorts(root)) ||
+                        (prefs.blockShortsFeed && isOnContent)
+                    }
+                    if (shouldBlock) {
                         lastActionTime = now
                         if (!navigateToYouTubeHome(root)) performGlobalAction(GLOBAL_ACTION_BACK)
                     }

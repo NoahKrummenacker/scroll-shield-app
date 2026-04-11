@@ -18,6 +18,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _blockShorts     = true;
   bool _blockShortsFeed = false;
   bool _pinEnabled      = false;
+  bool _limitEnabled    = false;
+  int  _limitMinutes    = 30;
+  int  _usageSeconds    = 0;
 
   @override
   void initState() {
@@ -41,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final enabled    = await BlockerChannel.isServiceEnabled();
     final prefs      = await BlockerChannel.getPrefs();
     final pinEnabled = await BlockerChannel.isPinEnabled();
+    final limit      = await BlockerChannel.getDailyLimit();
     if (!mounted) return;
     setState(() {
       _serviceEnabled  = enabled;
@@ -49,6 +53,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _blockShorts     = prefs['blockShorts']     ?? true;
       _blockShortsFeed = prefs['blockShortsFeed'] ?? false;
       _pinEnabled      = pinEnabled;
+      _limitEnabled    = limit['enabled']      as bool;
+      _limitMinutes    = limit['limitMinutes'] as int;
+      _usageSeconds    = limit['usageSeconds'] as int;
     });
   }
 
@@ -90,6 +97,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
               // ── Statut du service ──────────────────────────────────────
               _StatusCard(colors: colors, enabled: _serviceEnabled),
+              if (_limitEnabled) ...[
+                const SizedBox(height: 10),
+                _DailyProgressCard(
+                  colors:       colors,
+                  limitMinutes: _limitMinutes,
+                  usageSeconds: _usageSeconds,
+                ),
+              ],
               const SizedBox(height: 24),
 
               // ── Instagram ──────────────────────────────────────────────
@@ -388,6 +403,85 @@ class _PinVerifyDialogState extends State<_PinVerifyDialog> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Barre de progression quotidienne ─────────────────────────────────────────
+
+class _DailyProgressCard extends StatelessWidget {
+  final AppColors colors;
+  final int       limitMinutes;
+  final int       usageSeconds;
+  const _DailyProgressCard({
+    required this.colors,
+    required this.limitMinutes,
+    required this.usageSeconds,
+  });
+
+  String _fmtUsage() {
+    final m = usageSeconds ~/ 60;
+    final s = usageSeconds  % 60;
+    if (m == 0) return '${s}s';
+    return '${m} min ${s.toString().padLeft(2, '0')} sec';
+  }
+
+  String _fmtLimit() {
+    if (limitMinutes < 60) return '$limitMinutes min';
+    final h = limitMinutes ~/ 60;
+    final rem = limitMinutes % 60;
+    return rem == 0 ? '${h}h' : '${h}h ${rem}min';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c            = colors;
+    final progress     = limitMinutes > 0
+        ? (usageSeconds / (limitMinutes * 60)).clamp(0.0, 1.0)
+        : 0.0;
+    final limitReached = usageSeconds >= limitMinutes * 60;
+    final barColor     = limitReached ? c.error : c.accent;
+
+    return Container(
+      padding:    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color:        limitReached ? c.error.withOpacity(0.08) : c.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: limitReached ? c.error.withOpacity(0.3) : c.accent.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Limite quotidienne',
+                style: TextStyle(color: c.text, fontWeight: FontWeight.w600, fontSize: 13)),
+              Text(
+                limitReached ? 'Limite atteinte' : '${_fmtUsage()} / ${_fmtLimit()}',
+                style: TextStyle(
+                  color:      barColor,
+                  fontSize:   12,
+                  fontWeight: limitReached ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value:           progress,
+              minHeight:       5,
+              backgroundColor: c.surface,
+              valueColor:      AlwaysStoppedAnimation<Color>(barColor),
+            ),
+          ),
+        ],
       ),
     );
   }

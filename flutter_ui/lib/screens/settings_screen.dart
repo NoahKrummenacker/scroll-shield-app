@@ -16,6 +16,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   TimeOfDay _startTime       = const TimeOfDay(hour: 9,  minute: 0);
   TimeOfDay _endTime         = const TimeOfDay(hour: 22, minute: 0);
   bool      _pinEnabled      = false;
+  bool      _limitEnabled    = false;
+  int       _limitMinutes    = 30;
+  int       _usageSeconds    = 0;
 
   @override
   void initState() {
@@ -26,13 +29,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadData() async {
     final schedule   = await BlockerChannel.getSchedule();
     final pinEnabled = await BlockerChannel.isPinEnabled();
+    final limit      = await BlockerChannel.getDailyLimit();
     if (!mounted) return;
     setState(() {
       _scheduleEnabled = schedule['enabled']   as bool;
       _startTime       = TimeOfDay(hour: schedule['startHour'] as int, minute: schedule['startMin'] as int);
       _endTime         = TimeOfDay(hour: schedule['endHour']   as int, minute: schedule['endMin']   as int);
       _pinEnabled      = pinEnabled;
+      _limitEnabled    = limit['enabled']      as bool;
+      _limitMinutes    = limit['limitMinutes'] as int;
+      _usageSeconds    = limit['usageSeconds'] as int;
     });
+  }
+
+  Future<bool> _askPin() async {
+    final colors = context.read<ThemeProvider>().colors;
+    final result = await showDialog<bool>(
+      context:            context,
+      barrierDismissible: false,
+      builder: (_) => _VerifyPinDialog(colors: colors),
+    );
+    return result == true;
   }
 
   Future<void> _saveSchedule() async {
@@ -103,6 +120,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
               onPickStart: () => _pickTime(true),
               onPickEnd:   () => _pickTime(false),
+            ),
+
+            const SizedBox(height: 24),
+            Divider(color: colors.surface, thickness: 1),
+            const SizedBox(height: 24),
+
+            // ── Limite quotidienne ─────────────────────────────────────────
+            _SectionLabel(text: 'Limite quotidienne', colors: colors),
+            const SizedBox(height: 10),
+            _DailyLimitCard(
+              colors:        colors,
+              enabled:       _limitEnabled,
+              limitMinutes:  _limitMinutes,
+              usageSeconds:  _usageSeconds,
+              onToggle: (v) async {
+                if (!v && _pinEnabled) {
+                  final ok = await _askPin();
+                  if (!ok) return;
+                }
+                setState(() => _limitEnabled = v);
+                await BlockerChannel.setDailyLimit(enabled: v, limitMinutes: _limitMinutes);
+              },
+              onLimitChanged: (minutes) async {
+                setState(() => _limitMinutes = minutes);
+                await BlockerChannel.setDailyLimit(enabled: _limitEnabled, limitMinutes: minutes);
+              },
+              onReset: () async {
+                if (_pinEnabled) {
+                  final ok = await _askPin();
+                  if (!ok) return;
+                }
+                await BlockerChannel.resetDailyUsage();
+                final usage = await BlockerChannel.getDailyUsage();
+                if (mounted) setState(() => _usageSeconds = usage);
+              },
             ),
 
             const SizedBox(height: 24),
@@ -258,6 +310,318 @@ class _ColorDot extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: size, height: size,
     decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
+}
+
+// ── Limite quotidienne ─────────────────────────────────────────────────────────
+
+class _DailyLimitCard extends StatefulWidget {
+  final AppColors  colors;
+  final bool       enabled;
+  final int        limitMinutes;
+  final int        usageSeconds;
+  final ValueChanged<bool> onToggle;
+  final ValueChanged<int>  onLimitChanged;
+  final VoidCallback       onReset;
+
+  const _DailyLimitCard({
+    required this.colors,
+    required this.enabled,
+    required this.limitMinutes,
+    required this.usageSeconds,
+    required this.onToggle,
+    required this.onLimitChanged,
+    required this.onReset,
+  });
+
+  @override
+  State<_DailyLimitCard> createState() => _DailyLimitCardState();
+}
+
+class _DailyLimitCardState extends State<_DailyLimitCard> {
+  static const _presets = [5, 10, 15, 30, 45, 60];
+  late final TextEditingController _customCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _customCtrl = TextEditingController(
+      text: _presets.contains(widget.limitMinutes) ? '' : '${widget.limitMinutes}',
+    );
+  }
+
+  @override
+  void didUpdateWidget(_DailyLimitCard old) {
+    super.didUpdateWidget(old);
+    // Si la valeur vient d'un chip, vider le champ custom
+    if (widget.limitMinutes != old.limitMinutes && _presets.contains(widget.limitMinutes)) {
+      _customCtrl.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _customCtrl.dispose();
+    super.dispose();
+  }
+
+  String _fmtUsage() {
+    final m = widget.usageSeconds ~/ 60;
+    final s = widget.usageSeconds  % 60;
+    if (m == 0) return '${s}s';
+    return '${m} min ${s.toString().padLeft(2, '0')} sec';
+  }
+
+  String _fmtLimit() {
+    final min = widget.limitMinutes;
+    if (min < 60) return '$min min';
+    final h = min ~/ 60;
+    final rem = min % 60;
+    return rem == 0 ? '${h}h' : '${h}h ${rem}min';
+  }
+
+  void _submitCustom(String value) {
+    final parsed = int.tryParse(value.trim());
+    if (parsed != null && parsed > 0 && parsed <= 1440) {
+      widget.onLimitChanged(parsed);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c            = widget.colors;
+    final progress     = widget.enabled && widget.limitMinutes > 0
+        ? (widget.usageSeconds / (widget.limitMinutes * 60)).clamp(0.0, 1.0)
+        : 0.0;
+    final limitReached = widget.usageSeconds >= widget.limitMinutes * 60;
+    final isCustom     = !_presets.contains(widget.limitMinutes);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 280),
+      decoration: BoxDecoration(
+        color:        c.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: widget.enabled ? c.accent.withOpacity(0.35) : Colors.transparent,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Toggle
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Activer la limite quotidienne',
+                        style: TextStyle(color: c.text, fontWeight: FontWeight.w600, fontSize: 15)),
+                      const SizedBox(height: 3),
+                      Text('Bloque Reels et Shorts une fois le budget journalier épuisé.',
+                        style: TextStyle(color: c.textSecondary, fontSize: 12, height: 1.4)),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value:            widget.enabled,
+                  onChanged:        widget.onToggle,
+                  activeColor:      c.accentForeground,
+                  activeTrackColor: c.accent,
+                ),
+              ],
+            ),
+          ),
+
+          // Détails (visibles uniquement si activé)
+          AnimatedCrossFade(
+            duration:       const Duration(milliseconds: 250),
+            crossFadeState: widget.enabled ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            firstChild: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Chips de sélection de durée
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _presets.map((min) {
+                      final selected = widget.limitMinutes == min;
+                      final label    = min < 60 ? '$min min' : '1h';
+                      return GestureDetector(
+                        onTap: () {
+                          _customCtrl.clear();
+                          widget.onLimitChanged(min);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color:        selected ? c.accent : c.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: selected ? c.accent : Colors.transparent,
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(label, style: TextStyle(
+                            color:      selected ? c.accentForeground : c.textSecondary,
+                            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                            fontSize:   13,
+                          )),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Champ de saisie personnalisée
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller:  _customCtrl,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted:  _submitCustom,
+                          style: TextStyle(color: c.text, fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText:        'Personnalisé (minutes)',
+                            hintStyle:       TextStyle(color: c.textSecondary, fontSize: 13),
+                            suffixText:      'min',
+                            suffixStyle:     TextStyle(color: c.textSecondary, fontSize: 13),
+                            filled:          true,
+                            fillColor:       isCustom ? c.accent.withOpacity(0.1) : c.surface,
+                            contentPadding:  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:   BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: isCustom ? c.accent.withOpacity(0.5) : Colors.transparent,
+                                width: 1,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: c.accent, width: 1.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => _submitCustom(_customCtrl.text),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color:        c.accent,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text('OK', style: TextStyle(
+                            color: c.accentForeground, fontWeight: FontWeight.w600, fontSize: 13)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Progression
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Aujourd\'hui : ${_fmtUsage()} / ${_fmtLimit()}',
+                        style: TextStyle(
+                          color:      limitReached ? c.error : c.textSecondary,
+                          fontSize:   12,
+                          fontWeight: limitReached ? FontWeight.w600 : FontWeight.normal,
+                        )),
+                      if (limitReached)
+                        Text('Limite atteinte',
+                          style: TextStyle(color: c.error, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value:           progress,
+                      minHeight:       6,
+                      backgroundColor: c.surface,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        limitReached ? c.error : c.accent),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Bouton reset
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: widget.onReset,
+                      style: TextButton.styleFrom(
+                        foregroundColor: c.textSecondary,
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Réinitialiser le compteur', style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            secondChild: const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Vérification PIN (pour actions protégées) ─────────────────────────────────
+
+class _VerifyPinDialog extends StatefulWidget {
+  final AppColors colors;
+  const _VerifyPinDialog({required this.colors});
+
+  @override
+  State<_VerifyPinDialog> createState() => _VerifyPinDialogState();
+}
+
+class _VerifyPinDialogState extends State<_VerifyPinDialog> {
+  String _pin   = '';
+  String _error = '';
+
+  void _onKey(String digit) async {
+    if (_pin.length >= 4) return;
+    final next = _pin + digit;
+    setState(() { _pin = next; _error = ''; });
+    if (next.length < 4) return;
+    final ok = await BlockerChannel.verifyPin(next);
+    if (ok) {
+      if (mounted) Navigator.pop(context, true);
+    } else {
+      setState(() { _pin = ''; _error = 'Code incorrect'; });
+    }
+  }
+
+  void _onDelete() {
+    if (_pin.isEmpty) return;
+    setState(() { _pin = _pin.substring(0, _pin.length - 1); _error = ''; });
+  }
+
+  @override
+  Widget build(BuildContext context) => _PinDialogShell(
+    colors: widget.colors, title: 'Entrer le code PIN',
+    pin: _pin, error: _error,
+    onKey: _onKey, onDelete: _onDelete,
+    onCancel: () => Navigator.pop(context, false),
   );
 }
 

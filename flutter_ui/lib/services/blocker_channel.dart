@@ -94,4 +94,37 @@ class BlockerChannel {
       await _channel.invokeMethod('openAccessibilitySettings');
     } catch (_) {}
   }
+
+  static Future<Map<String, dynamic>> getDailyLimit() async {
+    try {
+      final r = await _channel.invokeMethod<Map>('getDailyLimit');
+      return {
+        'enabled':      r?['enabled']      as bool? ?? false,
+        'limitMinutes': r?['limitMinutes'] as int?  ?? 30,
+        'usageSeconds': (r?['usageSeconds'] as num?)?.toInt() ?? 0,
+      };
+    } catch (_) {
+      return {'enabled': false, 'limitMinutes': 30, 'usageSeconds': 0};
+    }
+  }
+
+  static Future<void> setDailyLimit({required bool enabled, required int limitMinutes}) async {
+    try {
+      await _channel.invokeMethod('setDailyLimit', {'enabled': enabled, 'limitMinutes': limitMinutes});
+    } catch (_) {}
+  }
+
+  static Future<int> getDailyUsage() async {
+    try {
+      return (await _channel.invokeMethod<num>('getDailyUsage'))?.toInt() ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static Future<void> resetDailyUsage() async {
+    try {
+      await _channel.invokeMethod('resetDailyUsage');
+    } catch (_) {}
+  }
 }

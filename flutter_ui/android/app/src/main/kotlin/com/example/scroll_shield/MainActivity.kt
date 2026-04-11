@@ -76,6 +76,18 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
 
+                "getDailyLimit"   -> result.success(prefs.dailyLimitToMap())
+
+                "setDailyLimit"   -> {
+                    call.argument<Boolean>("enabled")?.let     { prefs.dailyLimitEnabled  = it }
+                    call.argument<Int>("limitMinutes")?.let    { prefs.dailyLimitMinutes  = it }
+                    result.success(null)
+                }
+
+                "getDailyUsage"   -> result.success(prefs.dailyUsageSeconds)
+
+                "resetDailyUsage" -> { prefs.resetDailyUsage(); result.success(null) }
+
                 else -> result.notImplemented()
             }
         }
