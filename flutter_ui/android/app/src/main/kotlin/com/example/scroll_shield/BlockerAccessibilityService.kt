@@ -28,8 +28,10 @@ class BlockerAccessibilityService : AccessibilityService() {
     }
 
     private lateinit var prefs: PrefsManager
-    private var lastActionTime = 0L
-    private var sessionStart   = 0L
+    private var lastActionTime        = 0L
+    private var sessionStart          = 0L
+    private var youtubeOpenTime       = 0L
+    private var lastYoutubeEventTime  = 0L
 
     override fun onServiceConnected() {
         prefs = PrefsManager(this)
@@ -86,15 +88,21 @@ class BlockerAccessibilityService : AccessibilityService() {
                     }
                 }
                 YOUTUBE_PACKAGE -> {
-                    val isOnContent = detectYouTubeShortsAnywhere(root)
+                    // Détecte l'ouverture de YouTube (gap > 5s = app en arrière-plan)
+                    if (now - lastYoutubeEventTime > 5_000L) youtubeOpenTime = now
+                    lastYoutubeEventTime = now
+
+                    val isOnContent          = detectYouTubeShortsAnywhere(root)
+                    val isOpeningWindow      = now - youtubeOpenTime < 1_000L
                     trackUsage(isOnContent, now)
                     if (!prefs.isWithinSchedule()) return
-                    val shouldBlock = if (prefs.dailyLimitEnabled) {
-                        prefs.shouldBlockByDailyLimit() && isOnContent
-                    } else {
-                        (prefs.blockShorts && detectYouTubeShorts(root)) ||
-                        (prefs.blockShortsFeed && isOnContent)
-                    }
+                    val shouldBlock = (isOpeningWindow && isOnContent) ||
+                        if (prefs.dailyLimitEnabled) {
+                            prefs.shouldBlockByDailyLimit() && isOnContent
+                        } else {
+                            (prefs.blockShorts && detectYouTubeShorts(root)) ||
+                            (prefs.blockShortsFeed && isOnContent)
+                        }
                     if (shouldBlock) {
                         lastActionTime = now
                         if (!navigateToYouTubeHome(root)) performGlobalAction(GLOBAL_ACTION_BACK)

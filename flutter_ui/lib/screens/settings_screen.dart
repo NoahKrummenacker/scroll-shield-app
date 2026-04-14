@@ -200,7 +200,10 @@ class _ThemeButton extends StatelessWidget {
         context:            context,
         backgroundColor:    Colors.transparent,
         isScrollControlled: true,
-        builder: (_) => _ThemeSheet(colors: colors),
+        builder: (ctx) => SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.66,
+          child:  _ThemeSheet(colors: colors),
+        ),
       ),
       child: Container(
         padding:    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -239,8 +242,11 @@ class _ThemeSheet extends StatelessWidget {
         color:        colors.card,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-      child: Column(
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
@@ -296,8 +302,10 @@ class _ThemeSheet extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
+      ),        // Column
+    ),          // Padding
+  ),            // SafeArea
+);              // Container
   }
 }
 
