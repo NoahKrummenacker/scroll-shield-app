@@ -106,24 +106,31 @@ class BlockerAccessibilityService : AccessibilityService() {
                         lastDmContextTime = now
                     }
 
-                    // Scroll pendant un Reel DM → renvoyer dans la conversation (seulement si le blocage est actif)
+                    // Scroll depuis un Reel DM → fin de l'exemption (le reel suivant comptera)
                     val blockingActive = prefs.isWithinSchedule() && (
                         if (prefs.dailyLimitEnabled) prefs.shouldBlockByDailyLimit()
                         else prefs.blockReels || prefs.blockReelsFeed)
-                    if (dmReelActive && prefs.allowDmReels && blockingActive &&
+                    if (dmReelActive && prefs.allowDmReels &&
                         event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED &&
                         now - dmReelActivatedTime > 800L) {
-                        dmReelActive      = false
-                        lastDmContextTime = now
-                        lastActionTime    = now
-                        performGlobalAction(GLOBAL_ACTION_BACK)
-                        return
+                        dmReelActive = false
+                        if (blockingActive) {
+                            // Bloqué → éjecter, garder la fenêtre DM ouverte pour rouvrir
+                            lastDmContextTime = now
+                            lastActionTime    = now
+                            performGlobalAction(GLOBAL_ACTION_BACK)
+                            return
+                        } else {
+                            // Encore du temps → fermer la fenêtre DM pour que les reels suivants
+                            // ne soient plus exemptés et comptent dans le temps
+                            lastDmContextTime = 0L
+                        }
                     }
 
                     // Blocage normal — exempte les Reels DM actifs
                     val dmExempt    = prefs.allowDmReels && dmReelActive
                     val isOnContent = (isOnReelsTab || isOnReelPlayer) && !dmExempt
-                    trackUsage(isOnReelsTab || isOnReelPlayer, now)
+                    trackUsage(isOnContent, now)
                     if (!prefs.isWithinSchedule()) return
                     val shouldBlock = if (prefs.dailyLimitEnabled) {
                         prefs.shouldBlockByDailyLimit() && isOnContent
