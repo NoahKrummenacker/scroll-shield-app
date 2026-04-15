@@ -31,13 +31,13 @@ class AppColors {
     background:       Color(0xFF060D15),
     surface:          Color(0xFF0F2035),
     card:             Color(0xFF142844),
-    accent:           Color(0xFFFFD60A),
+    accent:           Color.fromARGB(255, 241, 241, 241),
     accentForeground: Color(0xFF060D15),
     text:             Color(0xFFE8EDF5),
     textSecondary:    Color(0xFF8A9BB0),
     success:          Color(0xFF4CAF50),
-    error:            Color(0xFFCF6679),
-    label:            'Bleu & Jaune',
+    error:            Color.fromARGB(255, 102, 200, 207),
+    label:            'Bleu & Blanc',
   );
 
   static const grisFonce = AppColors(
