@@ -19,9 +19,10 @@ class BlockerChannel {
         'blockReelsFeed':  result?['blockReelsFeed']  as bool? ?? false,
         'blockShorts':     result?['blockShorts']     as bool? ?? true,
         'blockShortsFeed': result?['blockShortsFeed'] as bool? ?? false,
+        'allowDmReels':    result?['allowDmReels']    as bool? ?? false,
       };
     } catch (_) {
-      return {'blockReels': true, 'blockReelsFeed': false, 'blockShorts': true, 'blockShortsFeed': false};
+      return {'blockReels': true, 'blockReelsFeed': false, 'blockShorts': true, 'blockShortsFeed': false, 'allowDmReels': false};
     }
   }
 
