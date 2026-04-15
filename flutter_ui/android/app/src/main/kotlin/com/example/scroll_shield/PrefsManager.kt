@@ -17,6 +17,9 @@ class PrefsManager(context: Context) {
     var blockReelsFeed: Boolean
         get() = prefs.getBoolean("block_reels_feed", false)
         set(v) = prefs.edit().putBoolean("block_reels_feed", v).apply()
+    var allowDmReels: Boolean
+        get() = prefs.getBoolean("allow_dm_reels", false)
+        set(v) = prefs.edit().putBoolean("allow_dm_reels", v).apply()
     var blockShorts: Boolean
         get() = prefs.getBoolean("block_shorts", true)
         set(v) = prefs.edit().putBoolean("block_shorts", v).apply()
@@ -87,7 +90,8 @@ class PrefsManager(context: Context) {
 
     fun toMap(): Map<String, Boolean> = mapOf(
         "blockReels" to blockReels, "blockReelsFeed" to blockReelsFeed,
-        "blockShorts" to blockShorts, "blockShortsFeed" to blockShortsFeed)
+        "blockShorts" to blockShorts, "blockShortsFeed" to blockShortsFeed,
+        "allowDmReels" to allowDmReels)
 
     fun scheduleToMap(): Map<String, Any> = mapOf(
         "enabled" to scheduleEnabled, "startHour" to scheduleStartHour,

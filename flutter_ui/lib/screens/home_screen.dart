@@ -15,6 +15,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _serviceEnabled  = false;
   bool _blockReels      = true;
   bool _blockReelsFeed  = false;
+  bool _allowDmReels    = false;
   bool _blockShorts     = true;
   bool _blockShortsFeed = false;
   bool _pinEnabled      = false;
@@ -50,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _serviceEnabled  = enabled;
       _blockReels      = prefs['blockReels']      ?? true;
       _blockReelsFeed  = prefs['blockReelsFeed']  ?? false;
+      _allowDmReels    = prefs['allowDmReels']    ?? false;
       _blockShorts     = prefs['blockShorts']     ?? true;
       _blockShortsFeed = prefs['blockShortsFeed'] ?? false;
       _pinEnabled      = pinEnabled;
@@ -124,6 +126,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 subtitle:  'Redirige aussi si un Reel s\'ouvre depuis le fil ou l\'explore.',
                 value:     _blockReelsFeed,
                 onChanged: (v) => _onToggle('blockReelsFeed', v, (x) => setState(() => _blockReelsFeed = x)),
+              ),
+              const SizedBox(height: 10),
+              _ToggleCard(
+                colors:    colors,
+                title:     'Autoriser les Reels reçus en DM',
+                subtitle:  'Regarde le Reel reçu en message sans pouvoir en voir d\'autres.',
+                value:     _allowDmReels,
+                onChanged: (v) => _onToggle('allowDmReels', v, (x) => setState(() => _allowDmReels = x)),
               ),
               const SizedBox(height: 24),
 

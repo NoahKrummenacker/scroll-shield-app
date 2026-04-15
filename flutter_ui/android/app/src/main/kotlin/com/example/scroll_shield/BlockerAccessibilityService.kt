@@ -25,6 +25,11 @@ class BlockerAccessibilityService : AccessibilityService() {
             "com.google.android.youtube:id/shorts_container",
             "com.google.android.youtube:id/reel_watch_fragment_root",
             "com.google.android.youtube:id/shorts_player_view_pager")
+        // IDs focusables confirmés par uiautomator dump — isVisibleToUser=true garanti
+        val INSTAGRAM_DM_THREAD_IDS = listOf(
+            "com.instagram.android:id/row_thread_composer_edittext",
+            "com.instagram.android:id/thread_fragment_container",
+            "com.instagram.android:id/message_list")
     }
 
     private lateinit var prefs: PrefsManager
@@ -32,11 +37,16 @@ class BlockerAccessibilityService : AccessibilityService() {
     private var sessionStart          = 0L
     private var youtubeOpenTime       = 0L
     private var lastYoutubeEventTime  = 0L
+    private var lastDmContextTime      = 0L
+    private var dmReelActive          = false
+    private var dmReelActivatedTime   = 0L
 
     override fun onServiceConnected() {
         prefs = PrefsManager(this)
         serviceInfo = AccessibilityServiceInfo().apply {
-            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
+                         AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
+                         AccessibilityEvent.TYPE_VIEW_SCROLLED
             packageNames = arrayOf(INSTAGRAM_PACKAGE, YOUTUBE_PACKAGE)
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
@@ -73,13 +83,49 @@ class BlockerAccessibilityService : AccessibilityService() {
                 INSTAGRAM_PACKAGE -> {
                     val isOnReelsTab   = detectInstagramReels(root)
                     val isOnReelPlayer = detectInstagramReelPlayer(root)
-                    val isOnContent    = isOnReelsTab || isOnReelPlayer
+                    val isInDmThread   = detectInstagramDmThread(root)
+
+                    // Mémorise la dernière fois qu'on était dans un fil DM
+                    if (isInDmThread && !dmReelActive) lastDmContextTime = now
+
+                    // Dès que le user quitte le contexte DM/reel sans être en mode actif → ferme la fenêtre
+                    // (couvre : onglet Reels, accueil, explore, profil, etc.)
+                    if (!isInDmThread && !isOnReelPlayer && !dmReelActive) lastDmContextTime = 0L
+
+                    // Reel ouvert dans les 5s après un fil DM → mode reel DM
+                    if (!dmReelActive && prefs.allowDmReels &&
+                        isOnReelPlayer &&
+                        now - lastDmContextTime < 5_000L) {
+                        dmReelActive = true
+                        dmReelActivatedTime = now
+                    }
+
+                    // Retour dans la conversation → reset
+                    if (dmReelActive && isInDmThread && !isOnReelPlayer && !isOnReelsTab) {
+                        dmReelActive = false
+                        lastDmContextTime = now
+                    }
+
+                    // Scroll pendant un Reel DM → renvoyer dans la conversation
+                    if (dmReelActive && prefs.allowDmReels &&
+                        event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED &&
+                        now - dmReelActivatedTime > 800L) {
+                        dmReelActive      = false
+                        lastDmContextTime = now
+                        lastActionTime    = now
+                        performGlobalAction(GLOBAL_ACTION_BACK)
+                        return
+                    }
+
+                    // Blocage normal — exempte les Reels DM actifs
+                    val dmExempt    = prefs.allowDmReels && dmReelActive
+                    val isOnContent = (isOnReelsTab || isOnReelPlayer) && !dmExempt
                     trackUsage(isOnContent, now)
                     if (!prefs.isWithinSchedule()) return
                     val shouldBlock = if (prefs.dailyLimitEnabled) {
                         prefs.shouldBlockByDailyLimit() && isOnContent
                     } else {
-                        (prefs.blockReels && isOnReelsTab) ||
+                        (prefs.blockReels && isOnReelsTab && !dmExempt) ||
                         (prefs.blockReelsFeed && isOnContent)
                     }
                     if (shouldBlock) {
@@ -118,7 +164,9 @@ class BlockerAccessibilityService : AccessibilityService() {
         nodes.forEach { it.recycle() }
         return sel
     }
+
     private fun detectInstagramReelPlayer(root: AccessibilityNodeInfo) = anyViewFound(root, INSTAGRAM_REEL_PLAYER_IDS)
+    private fun detectInstagramDmThread(root: AccessibilityNodeInfo)   = anyViewFound(root, INSTAGRAM_DM_THREAD_IDS)
     private fun navigateToInstagramHome(root: AccessibilityNodeInfo) = clickFirstFound(root, INSTAGRAM_HOME_TAB_IDS)
     private fun detectYouTubeShorts(root: AccessibilityNodeInfo): Boolean {
         if (anyViewFound(root, listOf("com.google.android.youtube:id/shorts_container"))) return true

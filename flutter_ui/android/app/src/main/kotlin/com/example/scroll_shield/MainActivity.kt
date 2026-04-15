@@ -39,6 +39,7 @@ class MainActivity : FlutterActivity() {
                         "blockReelsFeed"  -> prefs.blockReelsFeed  = value
                         "blockShorts"     -> prefs.blockShorts     = value
                         "blockShortsFeed" -> prefs.blockShortsFeed = value
+                        "allowDmReels"    -> prefs.allowDmReels    = value
                     }
                     result.success(null)
                 }
