@@ -106,8 +106,11 @@ class BlockerAccessibilityService : AccessibilityService() {
                         lastDmContextTime = now
                     }
 
-                    // Scroll pendant un Reel DM → renvoyer dans la conversation
-                    if (dmReelActive && prefs.allowDmReels &&
+                    // Scroll pendant un Reel DM → renvoyer dans la conversation (seulement si le blocage est actif)
+                    val blockingActive = prefs.isWithinSchedule() && (
+                        if (prefs.dailyLimitEnabled) prefs.shouldBlockByDailyLimit()
+                        else prefs.blockReels || prefs.blockReelsFeed)
+                    if (dmReelActive && prefs.allowDmReels && blockingActive &&
                         event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED &&
                         now - dmReelActivatedTime > 800L) {
                         dmReelActive      = false
@@ -120,7 +123,7 @@ class BlockerAccessibilityService : AccessibilityService() {
                     // Blocage normal — exempte les Reels DM actifs
                     val dmExempt    = prefs.allowDmReels && dmReelActive
                     val isOnContent = (isOnReelsTab || isOnReelPlayer) && !dmExempt
-                    trackUsage(isOnContent, now)
+                    trackUsage(isOnReelsTab || isOnReelPlayer, now)
                     if (!prefs.isWithinSchedule()) return
                     val shouldBlock = if (prefs.dailyLimitEnabled) {
                         prefs.shouldBlockByDailyLimit() && isOnContent
