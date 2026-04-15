@@ -5,11 +5,12 @@ import 'theme/theme_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final savedLabel = await ThemeProvider.loadSavedLabel();
   runApp(
     ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+      create: (_) => ThemeProvider(savedLabel),
       child:  const ScrollShieldApp(),
     ),
   );

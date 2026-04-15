@@ -130,8 +130,8 @@ class BlockerAccessibilityService : AccessibilityService() {
                     // Blocage normal — exempte les Reels DM actifs
                     val dmExempt    = prefs.allowDmReels && dmReelActive
                     val isOnContent = (isOnReelsTab || isOnReelPlayer) && !dmExempt
+                    if (!prefs.isWithinSchedule()) { trackUsage(false, now); return }
                     trackUsage(isOnContent, now)
-                    if (!prefs.isWithinSchedule()) return
                     val shouldBlock = if (prefs.dailyLimitEnabled) {
                         prefs.shouldBlockByDailyLimit() && isOnContent
                     } else {
@@ -150,8 +150,8 @@ class BlockerAccessibilityService : AccessibilityService() {
 
                     val isOnContent          = detectYouTubeShortsAnywhere(root)
                     val isOpeningWindow      = now - youtubeOpenTime < 1_000L
+                    if (!prefs.isWithinSchedule()) { trackUsage(false, now); return }
                     trackUsage(isOnContent, now)
-                    if (!prefs.isWithinSchedule()) return
                     val shouldBlock = (isOpeningWindow && isOnContent) ||
                         if (prefs.dailyLimitEnabled) {
                             prefs.shouldBlockByDailyLimit() && isOnContent
